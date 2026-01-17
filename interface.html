@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gerador de Folha de Evolução</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        padding: 20px;
+      }
+
+      .container {
+        background: white;
+        border-radius: 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        max-width: 600px;
+        width: 100%;
+        padding: 40px;
+      }
+
+      h1 {
+        color: #333;
+        text-align: center;
+        margin-bottom: 10px;
+        font-size: 28px;
+      }
+
+      .subtitle {
+        text-align: center;
+        color: #666;
+        margin-bottom: 30px;
+        font-size: 14px;
+      }
+
+      .upload-area {
+        border: 3px dashed #667eea;
+        border-radius: 15px;
+        padding: 40px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 20px;
+      }
+
+      .upload-area:hover {
+        background: #f8f9ff;
+        border-color: #764ba2;
+      }
+
+      .upload-area.dragging {
+        background: #f0f4ff;
+        border-color: #4338ca;
+      }
+
+      .upload-icon {
+        font-size: 50px;
+        margin-bottom: 15px;
+      }
+
+      .upload-text {
+        color: #666;
+        font-size: 16px;
+      }
+
+      input[type="file"] {
+        display: none;
+      }
+
+      .file-info {
+        background: #f8f9ff;
+        border-radius: 10px;
+        padding: 15px;
+        margin-bottom: 20px;
+        display: none;
+      }
+
+      .file-info.show {
+        display: block;
+      }
+
+      .file-name {
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+      }
+
+      .file-size {
+        color: #666;
+        font-size: 14px;
+      }
+
+      .btn {
+        width: 100%;
+        padding: 15px;
+        border: none;
+        border-radius: 10px;
+        font-size: 16px;
+        font-weight: bold;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        margin-bottom: 10px;
+      }
+
+      .btn-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        transform: translateY(-2px);
+        box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+      }
+
+      .btn-primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .btn-secondary {
+        background: #e5e7eb;
+        color: #666;
+      }
+
+      .btn-secondary:hover {
+        background: #d1d5db;
+      }
+
+      .loading {
+        display: none;
+        text-align: center;
+        margin-top: 20px;
+      }
+
+      .loading.show {
+        display: block;
+      }
+
+      .spinner {
+        border: 4px solid #f3f4f6;
+        border-top: 4px solid #667eea;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 0 auto 10px;
+      }
+
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+
+      .status {
+        margin-top: 20px;
+        padding: 15px;
+        border-radius: 10px;
+        display: none;
+      }
+
+      .status.show {
+        display: block;
+      }
+
+      .status.success {
+        background: #d1fae5;
+        color: #065f46;
+        border: 2px solid #10b981;
+      }
+
+      .status.error {
+        background: #fee2e2;
+        color: #991b1b;
+        border: 2px solid #ef4444;
+      }
+
+      .status-icon {
+        font-size: 20px;
+        margin-right: 10px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <h1>Gerador de Folha de Evolução</h1>
+      <p class="subtitle">
+        Transforme sua Folha de Frequência em Folha de Evolução automaticamente
+      </p>
+
+      <div class="upload-area" id="uploadArea">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">
+          Clique para selecionar ou arraste o arquivo aqui<br />
+          <small style="color: #999">Apenas arquivos .docx</small>
+        </div>
+      </div>
+
+      <input type="file" id="fileInput" accept=".docx" />
+
+      <div class="file-info" id="fileInfo">
+        <div class="file-name" id="fileName"></div>
+        <div class="file-size" id="fileSize"></div>
+      </div>
+
+      <button class="btn btn-primary" id="processBtn" disabled>
+        Processar e Gerar Evolução
+      </button>
+
+      <div class="btn btn-secondary" id="clearBtn" style="display: none">
+        Limpar e Enviar Outro Arquivo
+      </div>
+
+      <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>Processando documento...</p>
+      </div>
+
+      <div class="status" id="status"></div>
+    </div>
+
+    <script>
+      const API_URL = "http://localhost:8000";
+
+      const uploadArea = document.getElementById("uploadArea");
+      const fileInput = document.getElementById("fileInput");
+      const fileInfo = document.getElementById("fileInfo");
+      const fileName = document.getElementById("fileName");
+      const fileSize = document.getElementById("fileSize");
+      const processBtn = document.getElementById("processBtn");
+      const clearBtn = document.getElementById("clearBtn");
+      const loading = document.getElementById("loading");
+      const status = document.getElementById("status");
+
+      let selectedFile = null;
+
+      // Click para selecionar arquivo
+      uploadArea.addEventListener("click", () => fileInput.click());
+
+      // Drag and drop
+      uploadArea.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        uploadArea.classList.add("dragging");
+      });
+
+      uploadArea.addEventListener("dragleave", () => {
+        uploadArea.classList.remove("dragging");
+      });
+
+      uploadArea.addEventListener("drop", (e) => {
+        e.preventDefault();
+        uploadArea.classList.remove("dragging");
+        const files = e.dataTransfer.files;
+        if (files.length > 0) {
+          handleFileSelect(files[0]);
+        }
+      });
+
+      // Seleção de arquivo
+      fileInput.addEventListener("change", (e) => {
+        if (e.target.files.length > 0) {
+          handleFileSelect(e.target.files[0]);
+        }
+      });
+
+      function handleFileSelect(file) {
+        if (!file.name.endsWith(".docx")) {
+          showStatus("error", "❌ Apenas arquivos .docx são permitidos!");
+          return;
+        }
+
+        selectedFile = file;
+        fileName.textContent = `📄 ${file.name}`;
+        fileSize.textContent = `Tamanho: ${formatFileSize(file.size)}`;
+        fileInfo.classList.add("show");
+        processBtn.disabled = false;
+        clearBtn.style.display = "block";
+        hideStatus();
+      }
+
+      function formatFileSize(bytes) {
+        if (bytes < 1024) return bytes + " B";
+        if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + " KB";
+        return (bytes / (1024 * 1024)).toFixed(2) + " MB";
+      }
+
+      processBtn.addEventListener("click", async () => {
+        if (!selectedFile) return;
+
+        console.log("=== INICIANDO PROCESSAMENTO ===");
+        console.log("Arquivo:", selectedFile.name);
+        console.log("Tamanho:", selectedFile.size, "bytes");
+        console.log("Tipo:", selectedFile.type);
+
+        processBtn.disabled = true;
+        loading.classList.add("show");
+        hideStatus();
+
+        const formData = new FormData();
+        formData.append("arquivo", selectedFile);
+
+        try {
+          console.log("Enviando requisição para:", `${API_URL}/processar`);
+
+          // Cria controller para timeout manual
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 60000); // 60 segundos
+
+          const response = await fetch(`${API_URL}/processar`, {
+            method: "POST",
+            body: formData,
+            signal: controller.signal,
+          }).finally(() => clearTimeout(timeoutId));
+
+          console.log("Status da resposta:", response.status);
+          console.log("Headers da resposta:", [...response.headers.entries()]);
+          console.log("OK:", response.ok);
+          console.log("Content-Type:", response.headers.get("content-type"));
+
+          if (!response.ok) {
+            console.error(
+              "Erro na resposta:",
+              response.status,
+              response.statusText
+            );
+
+            // Tenta ler o corpo da resposta como JSON
+            let errorDetail = "Erro desconhecido";
+            try {
+              const error = await response.json();
+              errorDetail = error.detail || JSON.stringify(error);
+              console.error("Detalhes do erro:", error);
+            } catch (e) {
+              // Se não for JSON, tenta ler como texto
+              const errorText = await response.text();
+              errorDetail = errorText || response.statusText;
+              console.error("Texto do erro:", errorText);
+            }
+
+            throw new Error(errorDetail);
+          }
+
+          console.log("Resposta OK, baixando arquivo...");
+
+          // Download do arquivo gerado
+          const blob = await response.blob();
+          console.log("Blob recebido, tamanho:", blob.size, "bytes");
+
+          const url = window.URL.createObjectURL(blob);
+          const a = document.createElement("a");
+          a.href = url;
+          a.download = `Evolucao_${selectedFile.name}`;
+          document.body.appendChild(a);
+          a.click();
+          window.URL.revokeObjectURL(url);
+          document.body.removeChild(a);
+
+          console.log("Download iniciado com sucesso!");
+          showStatus(
+            "success",
+            "✅ Documento gerado com sucesso! Download iniciado."
+          );
+        } catch (error) {
+          console.error("ERRO CAPTURADO:", error);
+          console.error("Nome do erro:", error.name);
+          console.error("Mensagem:", error.message);
+          console.error("Stack:", error.stack);
+
+          let errorMessage = error.message;
+
+          // Identifica tipos específicos de erro
+          if (error.name === "AbortError") {
+            errorMessage =
+              "Tempo esgotado (mais de 60s). Arquivo muito grande ou servidor lento.";
+          } else if (error.message === "Failed to fetch") {
+            errorMessage =
+              "Não foi possível conectar ao servidor. Verifique se a API está rodando em http://localhost:8000";
+          }
+
+          showStatus("error", `❌ Erro: ${errorMessage}`);
+        } finally {
+          loading.classList.remove("show");
+          processBtn.disabled = false;
+          console.log("=== PROCESSAMENTO FINALIZADO ===");
+        }
+      });
+
+      clearBtn.addEventListener("click", () => {
+        selectedFile = null;
+        fileInput.value = "";
+        fileInfo.classList.remove("show");
+        processBtn.disabled = true;
+        clearBtn.style.display = "none";
+        hideStatus();
+      });
+
+      function showStatus(type, message) {
+        status.className = "status show " + type;
+        status.innerHTML = message;
+      }
+
+      function hideStatus() {
+        status.classList.remove("show");
+      }
+
+      // Verifica se a API está disponível
+      fetch(`${API_URL}/health`)
+        .then((res) => res.json())
+        .then(() => {
+          console.log("✓ API conectada com sucesso!");
+        })
+        .catch(() => {
+          showStatus(
+            "error",
+            "⚠️ API não está disponível. Certifique-se de que o servidor está rodando em http://localhost:8000"
+          );
+        });
+    </script>
+  </body>
+</html>

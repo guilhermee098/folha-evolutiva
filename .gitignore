@@ -48,3 +48,10 @@ desktop.ini
 # Temporários
 *.tmp
 ~$*.docx
+
+logo_extraida.png
+temp_template.docx
+
+# Diretórios temporários da API
+temp_uploads/
+temp_outputs/
