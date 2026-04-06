@@ -625,6 +625,7 @@ def gerar_word_evolucao(dados, caminho_destino, config, dados_cabecalho=None):
                 nova_tabela._element.remove(nova_tabela.rows[1]._element)
 
         # Preenche a tabela com dados da especialidade
+        contador_sessao = 1  # Contador sequencial para cada especialidade
         for item in atendimentos_esp:
             try:
                 inicio = datetime.strptime(item['inicio'], config["formato_hora"])
@@ -633,8 +634,9 @@ def gerar_word_evolucao(dados, caminho_destino, config, dados_cabecalho=None):
                 # Clona a linha de dados do modelo (linha 1 da tabela modelo)
                 nova_linha = clonar_linha_tabela(nova_tabela, linha_dados_modelo)
                 
-                # Dados da linha: [DATA, INÍCIO, TÉRMINO, EVOLUÇÃO DIÁRIA (vazio), TÉCNICO (vazio)]
+                # Dados da linha: [Nº, DATA, INÍCIO, TÉRMINO, EVOLUÇÃO DIÁRIA (vazio), TÉCNICO (vazio)]
                 dados_linha = [
+                    str(contador_sessao),  # Nº - Contador sequencial
                     item['data'],
                     item['inicio'],
                     termino,
@@ -644,6 +646,7 @@ def gerar_word_evolucao(dados, caminho_destino, config, dados_cabecalho=None):
                 
                 preencher_linha_tabela(nova_linha, dados_linha)
                 total_linhas_geradas += 1
+                contador_sessao += 1  # Incrementa contador
                 
             except ValueError as e:
                 logger.error(f"✗ Erro ao processar {esp} (Tabela {item['tabela_origem']}, Linha {item['linha_origem']}): {e}")
